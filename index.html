@@ -245,6 +245,56 @@
   .subadd input{flex:1;border:1px dashed var(--line);background:transparent;color:var(--ink);border-radius:9px;padding:7px 10px;font-size:13px}
   .mactions{display:flex;gap:8px;margin-top:16px}
   .mactions .del{margin-left:auto;color:var(--danger);border-color:color-mix(in srgb,var(--danger) 40%,var(--line))}
+
+  /* ===== Écrans tactiles : rendre visibles les boutons sinon cachés au survol ===== */
+  @media (hover:none){
+    .card .iconbtn{opacity:.75}
+    .ritual .rm{opacity:.6}
+    .card .iconbtn, .ritual .rm{padding:4px 6px}
+  }
+
+  /* ===== Mobile (Samsung S21 Ultra ≈ 384px & co) ===== */
+  @media (max-width:640px){
+    body{padding:12px;-webkit-text-size-adjust:100%}
+    header.top{gap:10px;margin-bottom:14px}
+    .brand h1{font-size:19px}
+    .brand p{font-size:12px}
+    .stats{width:100%;gap:6px}
+    .stat{flex:1 1 auto;min-width:56px;padding:7px 8px}
+    .stat b{font-size:16px}
+    .stat span{font-size:10px}
+
+    .toolbar{gap:8px}
+    .toolbar .spacer{display:none}
+    .seg{order:-1;width:100%}
+    .seg button{flex:1;text-align:center;padding:9px 6px}
+    #syncBtn,#exportBtn,#importBtn,#resetBtn{flex:1 1 auto;justify-content:center;padding:9px 10px}
+    .saved{order:99;width:100%;text-align:center}
+
+    .inbox{padding:12px 12px}
+    .inbox .hd{flex-wrap:wrap}
+    .inbox .hd .hint{flex-basis:100%;margin-top:2px}
+    .board{gap:12px}
+    .lower{gap:12px}
+    .panel{padding:12px 12px}
+
+    /* Modale plein écran plus confortable */
+    .overlay{padding:12px 10px;align-items:stretch}
+    .modal{padding:16px;max-width:none}
+    .frow{gap:10px}
+
+    /* Tableau des jalons : réempilé en cartes (plus de scroll horizontal) */
+    table.jal thead{display:none}
+    table.jal, table.jal tbody, table.jal tr, table.jal td{display:block;width:auto}
+    table.jal tr{border:1px solid var(--line);border-radius:12px;padding:8px 10px 10px;margin-bottom:10px;position:relative}
+    table.jal tr:last-child td{border-bottom:none}
+    table.jal td{border:none;padding:5px 0;display:flex;gap:10px;align-items:center;min-height:30px}
+    table.jal td::before{content:attr(data-label);color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;min-width:76px;flex:none}
+    table.jal td[contenteditable]{background:var(--soft);border-radius:8px;padding:6px 8px}
+    table.jal td.tx{position:absolute;top:6px;right:6px;padding:0}
+    table.jal td.tx::before{content:""}
+    .rmrow{opacity:.7}
+  }
 </style>
 </head>
 <body>
@@ -803,13 +853,14 @@
   }
   function renderJalons(){
     const tb=$("#jalBody"); tb.innerHTML="";
+    const LBL={name:"Jalon",freq:"Fréquence",deadline:"Deadline"};
     state.jalons.forEach((j,ri)=>{
       const tr=document.createElement("tr");
       ["name","freq","deadline"].forEach(key=>{
-        const td=document.createElement("td"); td.contentEditable="true"; td.textContent=j[key]||"";
+        const td=document.createElement("td"); td.contentEditable="true"; td.textContent=j[key]||""; td.setAttribute("data-label",LBL[key]);
         td.addEventListener("blur",()=>{ j[key]=td.textContent.trim(); save(); }); tr.appendChild(td);
       });
-      const td=document.createElement("td");
+      const td=document.createElement("td"); td.setAttribute("data-label","Prochaine");
       const di=document.createElement("input"); di.type="date"; di.value=j.date||"";
       di.onchange=()=>{ j.date=di.value; render(); }; td.appendChild(di); tr.appendChild(td);
       const tdx=document.createElement("td"); tdx.className="tx";
