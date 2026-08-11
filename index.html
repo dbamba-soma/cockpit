@@ -262,6 +262,15 @@
   .subadd input{flex:1;border:1px dashed var(--line);background:transparent;color:var(--ink);border-radius:9px;padding:7px 10px;font-size:13px}
   .mactions{display:flex;gap:8px;margin-top:16px}
   .mactions .del{margin-left:auto;color:var(--danger);border-color:color-mix(in srgb,var(--danger) 40%,var(--line))}
+  /* Popup de confirmation */
+  .overlay.confirm-ov{align-items:center;padding:20px}
+  .confirm-modal{max-width:400px}
+  .confirm-modal h3{margin:0 0 8px;font-size:16px;font-weight:700;color:var(--ink);text-transform:none;letter-spacing:0}
+  .confirm-modal .cf-msg{color:var(--muted);font-size:14px;line-height:1.5}
+  .confirm-modal .cf-msg b{color:var(--ink)}
+  .confirm-modal .mactions{margin-top:18px}
+  .confirm-modal .btn.danger{background:var(--danger);color:#fff;border-color:transparent;font-weight:700;margin-left:auto}
+  .confirm-modal .btn.danger:hover{filter:brightness(1.06)}
 
   /* ===== Écrans tactiles : rendre visibles les boutons sinon cachés au survol ===== */
   @media (hover:none){
@@ -580,7 +589,7 @@
         b.onclick=()=>moveInboxToCol(it.id,c.id); chip.appendChild(b);
       });
       const x=document.createElement("button"); x.className="x"; x.textContent="×"; x.title="Supprimer";
-      x.onclick=()=>{ state.inbox=state.inbox.filter(i=>i.id!==it.id); render(); };
+      x.onclick=()=>askConfirm({title:"Supprimer de l'INBOX", message:"Supprimer <b>"+esc(it.text)+"</b> de l'INBOX ?"}, ()=>{ state.inbox=state.inbox.filter(i=>i.id!==it.id); render(); });
       chip.appendChild(x); list.appendChild(chip);
     });
   }
@@ -781,6 +790,27 @@
   $("#overlay").addEventListener("click",e=>{ if(e.target.id==="overlay") { closeModal(); render(); } });
   document.addEventListener("keydown",e=>{ if(e.key==="Escape" && $("#overlay").classList.contains("open")){ closeModal(); render(); } });
 
+  /* Popup de confirmation réutilisable */
+  function askConfirm(opts, onYes){
+    opts=opts||{};
+    const ov=document.createElement("div"); ov.className="overlay confirm-ov open";
+    const m=document.createElement("div"); m.className="modal confirm-modal";
+    const h=document.createElement("h3"); h.textContent=opts.title||"Confirmer la suppression";
+    const msg=document.createElement("div"); msg.className="cf-msg"; msg.innerHTML=opts.message||"Voulez-vous vraiment supprimer cet élément ?";
+    const act=document.createElement("div"); act.className="mactions";
+    const cancel=document.createElement("button"); cancel.className="btn"; cancel.textContent="Annuler";
+    const ok=document.createElement("button"); ok.className="btn danger"; ok.textContent=opts.okLabel||"Supprimer";
+    m.append(h,msg,act); act.append(cancel,ok); ov.appendChild(m); document.body.appendChild(ov);
+    const close=()=>{ ov.remove(); document.removeEventListener("keydown",onKey); };
+    const onKey=e=>{ if(e.key==="Escape"){ e.preventDefault(); close(); } else if(e.key==="Enter"){ e.preventDefault(); close(); onYes(); } };
+    cancel.onclick=close;
+    ok.onclick=()=>{ close(); onYes(); };
+    ov.addEventListener("click",e=>{ if(e.target===ov) close(); });
+    document.addEventListener("keydown",onKey);
+    ok.focus();
+  }
+  const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
   /* ---------- roadmap ---------- */
   function renderRoadmap(){
     const track=$("#rmTrack"); track.innerHTML="";
@@ -930,7 +960,7 @@
       di.onchange=()=>{ j.date=di.value; render(); }; td.appendChild(di); tr.appendChild(td);
       const tdx=document.createElement("td"); tdx.className="tx";
       const rm=document.createElement("button"); rm.className="rmrow"; rm.textContent="×"; rm.title="Supprimer ce jalon";
-      rm.onclick=()=>{ state.jalons.splice(ri,1); render(); }; tdx.appendChild(rm); tr.appendChild(tdx);
+      rm.onclick=()=>askConfirm({title:"Supprimer un jalon", message:"Supprimer le jalon <b>"+esc(j.name||"(sans nom)")+"</b> ?"}, ()=>{ state.jalons.splice(ri,1); render(); }); tdx.appendChild(rm); tr.appendChild(tdx);
       tb.appendChild(tr);
     });
   }
@@ -942,7 +972,7 @@
         sp.addEventListener("blur",()=>{ it.t=sp.textContent.trim(); save(); });
         sp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); sp.blur(); }});
         const rm=document.createElement("button"); rm.className="rm"; rm.textContent="×"; rm.title="Supprimer";
-        rm.onclick=()=>{ arr.splice(i,1); renderRituals(); save(); };
+        rm.onclick=()=>askConfirm({title:"Supprimer une étape", message:"Supprimer l'étape <b>"+esc(it.t||"")+"</b> de ce rituel ?"}, ()=>{ arr.splice(i,1); renderRituals(); save(); });
         li.append(cb,sp,rm); ul.appendChild(li); });
       const addli=document.createElement("li"); addli.className="addli";
       const inp=document.createElement("input"); inp.placeholder="+ ajouter une étape… (Entrée)";
