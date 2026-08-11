@@ -25,6 +25,7 @@
   }
   *{box-sizing:border-box}
   html,body{margin:0;overflow-x:hidden}
+  form{margin:0}
   body{
     background:
       radial-gradient(1200px 600px at 100% -10%, color-mix(in srgb,var(--inbox) 10%,transparent), transparent 60%),
@@ -215,6 +216,7 @@
   .ritual li:hover .rm{opacity:.6}
   .ritual .rm:hover{opacity:1;color:var(--danger)}
   .ritual li.addli{padding-top:6px}
+  .ritual li.addli form{flex:1;display:flex}
   .ritual li.addli input{flex:1;margin:0;border:1px dashed var(--line);background:transparent;color:var(--ink);border-radius:8px;padding:6px 9px;font-size:13px}
   .ritual li.addli input:focus{outline:none;border-style:solid;border-color:var(--soma)}
   .sub{font-weight:700;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin:10px 0 2px}
@@ -317,9 +319,12 @@
     table.jal td{border:none;padding:5px 0;display:flex;gap:10px;align-items:center;min-height:30px}
     table.jal td::before{content:attr(data-label);color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;min-width:76px;flex:none}
     table.jal td[contenteditable]{background:var(--soft);border-radius:8px;padding:6px 8px}
-    table.jal td.tx{position:absolute;top:6px;right:6px;padding:0}
+    /* Bouton de suppression bien visible et tappable, en bas de chaque fiche jalon */
+    table.jal td.tx{position:static;width:auto;padding:8px 0 0;justify-content:flex-end}
     table.jal td.tx::before{content:""}
-    .rmrow{opacity:.7}
+    table.jal td.tx .rmrow{opacity:1;color:var(--danger);font-size:13px;font-weight:700;line-height:1;
+      border:1px solid color-mix(in srgb,var(--danger) 45%,var(--line));border-radius:9px;padding:8px 14px;width:auto;height:auto}
+    table.jal td.tx .rmrow::after{content:" Supprimer"}
   }
 </style>
 </head>
@@ -357,9 +362,9 @@
       <h2>📥 INBOX — à trier</h2>
       <span class="hint">un sujet non prévu ? note-le ici en une ligne, tri plus tard</span>
     </div>
-    <div class="inbox-add">
-      <input id="inboxInput" placeholder="Nouveau sujet… (Entrée pour ajouter)">
-    </div>
+    <form class="inbox-add" id="inboxForm">
+      <input id="inboxInput" enterkeyhint="done" placeholder="Nouveau sujet… (Entrée pour ajouter)">
+    </form>
     <div class="inbox-list" id="inboxList"></div>
   </section>
 
@@ -422,7 +427,7 @@
       <button class="btn ghost addrow" id="addJalon">+ ajouter un jalon</button>
     </section>
     <section class="panel">
-      <h2>🔁 Mes 2 rituels</h2>
+      <h2 id="ritTitle">🔁 Mes rituels</h2>
       <div class="sub">Chaque matin · 5 min</div>
       <ul class="ritual" id="ritMorning"></ul>
       <div class="sub">Chaque vendredi · 15 min</div>
@@ -603,14 +608,15 @@
         '<div class="hd"><span class="dot" style="background:var('+colVar[col.id]+')"></span>'+
         '<h2>'+col.title+'</h2><span class="count">'+items.length+'</span></div>'+
         '<div class="list" data-col="'+col.id+'"></div>'+
-        '<div class="add-row"><input placeholder="+ ajouter…" data-add="'+col.id+'"></div>';
+        '<form class="add-row" data-addform="'+col.id+'"><input placeholder="+ ajouter…" enterkeyhint="done" data-add="'+col.id+'"></form>';
       board.appendChild(el);
       const list=$(".list",el);
       items.forEach(card=>list.appendChild(cardEl(card,col)));
       wireDrop(list,col.id);
       const add=$('[data-add="'+col.id+'"]',el);
-      add.addEventListener("keydown",e=>{
-        if(e.key==="Enter" && add.value.trim()){
+      $('[data-addform="'+col.id+'"]',el).addEventListener("submit",e=>{
+        e.preventDefault();
+        if(add.value.trim()){
           state.cards.push({id:uid(),col:col.id,text:add.value.trim(),who:"",date:"",done:false,prio:"",notes:"",subs:[]});
           add.value=""; render();
         }
@@ -760,9 +766,9 @@
       });
     };
     drawSubs(); subWrap.appendChild(subs);
-    const sa=document.createElement("div"); sa.className="subadd";
-    const sai=document.createElement("input"); sai.placeholder="Ajouter une sous-étape… (Entrée)";
-    sai.addEventListener("keydown",e=>{ if(e.key==="Enter" && sai.value.trim()){ card.subs.push({t:sai.value.trim(),c:false}); sai.value=""; drawSubs(); save(); } });
+    const sa=document.createElement("form"); sa.className="subadd";
+    const sai=document.createElement("input"); sai.placeholder="Ajouter une sous-étape… (Entrée)"; sai.setAttribute("enterkeyhint","done");
+    sa.addEventListener("submit",e=>{ e.preventDefault(); if(sai.value.trim()){ card.subs.push({t:sai.value.trim(),c:false}); sai.value=""; drawSubs(); save(); sai.focus(); } });
     sa.appendChild(sai); subWrap.appendChild(sa); m.appendChild(subWrap);
 
     const act=document.createElement("div"); act.className="mactions";
@@ -975,11 +981,13 @@
         rm.onclick=()=>askConfirm({title:"Supprimer une étape", message:"Supprimer l'étape <b>"+esc(it.t||"")+"</b> de ce rituel ?"}, ()=>{ arr.splice(i,1); renderRituals(); save(); });
         li.append(cb,sp,rm); ul.appendChild(li); });
       const addli=document.createElement("li"); addli.className="addli";
-      const inp=document.createElement("input"); inp.placeholder="+ ajouter une étape… (Entrée)";
-      inp.addEventListener("keydown",e=>{ if(e.key==="Enter" && inp.value.trim()){ arr.push({t:inp.value.trim(),c:false}); renderRituals(); save(); const ni=ul.querySelector(".addli input"); if(ni) ni.focus(); }});
-      addli.appendChild(inp); ul.appendChild(addli);
+      const form=document.createElement("form");
+      const inp=document.createElement("input"); inp.placeholder="+ ajouter une étape… (Entrée)"; inp.setAttribute("enterkeyhint","done");
+      form.addEventListener("submit",e=>{ e.preventDefault(); if(inp.value.trim()){ arr.push({t:inp.value.trim(),c:false}); renderRituals(); save(); const ni=ul.querySelector(".addli input"); if(ni) ni.focus(); }});
+      form.appendChild(inp); addli.appendChild(form); ul.appendChild(addli);
     };
     build($("#ritMorning"),state.morning); build($("#ritFriday"),state.friday);
+    $("#ritTitle").textContent = "🔁 Mes "+(state.morning.length+state.friday.length)+" rituels";
   }
 
   /* ---------- sync settings modal ---------- */
@@ -1047,8 +1055,8 @@
   $("#dayPrev").onclick=()=>{ dayOffset--; renderDay(); };
   $("#dayNext").onclick=()=>{ dayOffset++; renderDay(); };
   $("#dayToday").onclick=()=>{ dayOffset=0; renderDay(); };
-  $("#inboxInput").addEventListener("keydown",e=>{ const v=e.currentTarget.value.trim();
-    if(e.key==="Enter" && v){ state.inbox.unshift({id:uid(),text:v}); e.currentTarget.value=""; render(); } });
+  $("#inboxForm").addEventListener("submit",e=>{ e.preventDefault(); const inp=$("#inboxInput"); const v=inp.value.trim();
+    if(v){ state.inbox.unshift({id:uid(),text:v}); inp.value=""; render(); } });
   $("#exportBtn").onclick=()=>{ const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
     const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="cockpit-"+todayStr()+".json"; a.click(); URL.revokeObjectURL(a.href); };
   $("#importBtn").onclick=()=>$("#importFile").click();
