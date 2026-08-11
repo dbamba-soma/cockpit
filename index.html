@@ -24,7 +24,7 @@
     }
   }
   *{box-sizing:border-box}
-  html,body{margin:0}
+  html,body{margin:0;overflow-x:hidden}
   body{
     background:
       radial-gradient(1200px 600px at 100% -10%, color-mix(in srgb,var(--inbox) 10%,transparent), transparent 60%),
@@ -167,10 +167,14 @@
 
   /* WEEK VIEW */
   #weekView{display:none}
-  .wk-bar{display:flex;align-items:center;gap:10px;margin:0 2px 12px}
-  .wk-bar #wkLabel{font-weight:700;font-size:14px;text-transform:capitalize}
-  .wk-bar .nav{display:inline-flex;gap:4px}
-  .wk-bar .nav button{width:34px}
+  .wk-bar{display:flex;align-items:center;gap:10px;margin:0 2px 14px;flex-wrap:wrap}
+  .wk-bar #wkLabel{font-weight:700;font-size:14px;text-transform:capitalize;flex:1 1 auto;min-width:130px}
+  .wk-bar .nav{display:inline-flex;gap:6px;align-items:center;flex:none}
+  /* Seules les flèches ‹ › ont une largeur fixe */
+  #wkPrev,#wkNext,#dayPrev,#dayNext{width:40px;padding:8px 0;font-size:16px;line-height:1}
+  /* Bouton « Aujourd'hui » mis en avant */
+  #wkToday,#dayToday{background:var(--client);color:#fff;border-color:transparent;font-weight:700;padding:8px 16px;box-shadow:0 1px 2px rgba(16,24,40,.12)}
+  #wkToday:hover,#dayToday:hover{filter:brightness(1.08)}
   .rm-month.day{width:170px}
   .rm-month.day.today{border-top:3px solid var(--soma);box-shadow:0 0 0 2px color-mix(in srgb,var(--soma) 45%,transparent),var(--shadow)}
   .rm-month.day.weekend .mh{background:var(--soft)}
@@ -179,7 +183,7 @@
 
   /* DAY VIEW */
   #dayView{display:none}
-  .wk-bar #dayLabel{font-weight:700;font-size:14px;text-transform:capitalize}
+  .wk-bar #dayLabel{font-weight:700;font-size:14px;text-transform:capitalize;flex:1 1 auto;min-width:130px}
   .rm-month.daypanel{width:300px}
   @media(max-width:640px){.rm-month.daypanel{width:82vw;max-width:340px}}
   .rm-month.daypanel.p-prio{border-top:3px solid var(--jour)}
