@@ -191,6 +191,20 @@
   .rm-month.daypanel.p-due{border-top:3px solid var(--soma)}
   .rm-month.daypanel.p-late{border-top:3px solid var(--danger)}
 
+  /* DONE VIEW */
+  #doneView{display:none}
+  .done-bar{display:flex;align-items:center;gap:10px;margin:0 2px 12px}
+  .done-bar #doneCount{font-weight:700;font-size:14px}
+  .done-list{display:flex;flex-direction:column;gap:8px}
+  .done-empty{color:var(--muted);font-size:13px;text-align:center;padding:30px 0;background:var(--panel);border:1px dashed var(--line);border-radius:var(--radius)}
+  .done-item{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:0 1px 1px rgba(16,24,40,.04)}
+  .done-item input[type=checkbox]{width:16px;height:16px;flex:none;cursor:pointer;accent-color:var(--soma)}
+  .done-item .dtag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;color:#fff;flex:none}
+  .done-item .dtxt{flex:1;font-size:14px;text-decoration:line-through;color:var(--muted);word-break:break-word}
+  .done-item .dwhen{font-size:11px;color:var(--muted);flex:none}
+  .done-item .ddel{border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:2px 6px;flex:none}
+  .done-item .ddel:hover{color:var(--danger)}
+
   /* lower panels */
   .lower{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-top:16px}
   @media(max-width:900px){.lower{grid-template-columns:1fr}}
@@ -345,6 +359,7 @@
       <button data-view="day">📌 Jour</button>
       <button data-view="week">📅 Semaine</button>
       <button data-view="roadmap">🗺️ Roadmap</button>
+      <button data-view="done">✅ Terminé</button>
     </div>
     <span class="spacer"></span>
     <span class="saved" id="saved">✓ enregistré</span>
@@ -401,6 +416,16 @@
       <span style="color:var(--muted);font-size:12px">Clique une tâche pour ouvrir son détail</span>
     </div>
     <div class="rm-scroll"><div class="rm-track" id="wkTrack"></div></div>
+  </div>
+
+  <!-- DONE VIEW (tâches terminées / archive) -->
+  <div id="doneView">
+    <div class="done-bar">
+      <span id="doneCount">✅ Tâches terminées</span>
+      <span class="spacer"></span>
+      <button class="btn" id="doneClear">🗑 Vider les terminées</button>
+    </div>
+    <div id="doneList"></div>
   </div>
 
   <!-- ROADMAP VIEW -->
@@ -494,7 +519,7 @@
   function migrate(s){
     if(!s || !s.cards) return seed();
     if(!s.view) s.view="board";
-    s.cards.forEach(c=>{ if(c.notes===undefined)c.notes=""; if(!Array.isArray(c.subs))c.subs=[]; if(c.who===undefined)c.who=""; if(c.date===undefined)c.date=""; if(c.prio===undefined)c.prio=""; });
+    s.cards.forEach(c=>{ if(c.notes===undefined)c.notes=""; if(!Array.isArray(c.subs))c.subs=[]; if(c.who===undefined)c.who=""; if(c.date===undefined)c.date=""; if(c.prio===undefined)c.prio=""; if(c.doneAt===undefined)c.doneAt=""; });
     // jalons: old array-of-arrays -> objects
     if(Array.isArray(s.jalons) && Array.isArray(s.jalons[0])){
       s.jalons = s.jalons.map(a=>({name:a[0]||"",freq:a[1]||"",deadline:a[2]||"",date:""}));
@@ -573,7 +598,7 @@
   /* ---------- render ---------- */
   function render(){
     renderInbox(); renderBoard(); renderStats(); renderJalons(); renderRituals();
-    renderRoadmap(); renderWeek(); renderDay(); applyView(); save();
+    renderRoadmap(); renderWeek(); renderDay(); renderDone(); applyView(); save();
   }
   function applyView(){
     const v=state.view||"board";
@@ -581,6 +606,7 @@
     $("#dayView").style.display    = v==="day" ? "block" : "none";
     $("#weekView").style.display   = v==="week" ? "block" : "none";
     $("#roadmapView").style.display= v==="roadmap" ? "block" : "none";
+    $("#doneView").style.display   = v==="done" ? "block" : "none";
     [...$("#viewSeg").children].forEach(b=>b.classList.toggle("on", b.dataset.view===v));
   }
 
@@ -602,7 +628,7 @@
   function renderBoard(){
     const board=$("#board"); board.innerHTML="";
     COLS.forEach(col=>{
-      const items=state.cards.filter(c=>c.col===col.id);
+      const items=state.cards.filter(c=>c.col===col.id && !c.done);
       const el=document.createElement("section"); el.className="col"; el.dataset.col=col.id;
       el.innerHTML =
         '<div class="hd"><span class="dot" style="background:var('+colVar[col.id]+')"></span>'+
@@ -633,7 +659,7 @@
     const row=document.createElement("div"); row.className="row1";
     if(col.done){
       const chk=document.createElement("input"); chk.type="checkbox"; chk.className="chk"; chk.checked=!!card.done;
-      chk.onchange=()=>{ card.done=chk.checked; render(); };
+      chk.onchange=()=>{ card.done=chk.checked; card.doneAt=chk.checked?todayStr():""; render(); };
       row.appendChild(chk);
     }
     const pb=document.createElement("button"); pb.className="pbtn "+(card.prio||""); pb.title="Priorité : "+(card.prio?PRIO_LABEL[card.prio]:"aucune")+" (clic pour changer)";
@@ -746,7 +772,7 @@
       st.innerHTML='<label>Statut</label>';
       const lab=document.createElement("label"); lab.style.cssText="display:flex;gap:8px;align-items:center;text-transform:none;font-weight:500;color:var(--ink);font-size:14px";
       const cb=document.createElement("input"); cb.type="checkbox"; cb.checked=!!card.done; cb.style.accentColor="var(--soma)";
-      cb.onchange=()=>{ card.done=cb.checked; }; lab.append(cb,document.createTextNode(" Terminé")); st.appendChild(lab); m.appendChild(st);
+      cb.onchange=()=>{ card.done=cb.checked; card.doneAt=cb.checked?todayStr():""; }; lab.append(cb,document.createTextNode(" Terminé")); st.appendChild(lab); m.appendChild(st);
     }
 
     m.appendChild(fldArea("Description / notes", card.notes||"", v=>{ card.notes=v; }));
@@ -917,7 +943,7 @@
     $("#dayLabel").textContent = base.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) + (suffix?" · "+suffix:"");
 
     // 1) Priorités du jour = colonne "jour" (liste de focus, indépendante de la date)
-    const prios = state.cards.filter(c=>c.col==="jour").map(c=>({title:c.text,type:"jour",done:!!c.done,cardId:c.id,prio:c.prio}));
+    const prios = state.cards.filter(c=>c.col==="jour" && !c.done).map(c=>({title:c.text,type:"jour",done:!!c.done,cardId:c.id,prio:c.prio}));
     track.appendChild(monthCol("⭐ Priorités du jour", prios.length+"/3", "daypanel p-prio", prios));
 
     // 2) Échéances du jour parcouru (tâches datées + jalons)
@@ -936,6 +962,29 @@
     }
   }
 
+  /* ---------- done / archive ---------- */
+  function renderDone(){
+    const list=$("#doneList"); if(!list) return; list.innerHTML="";
+    const done=state.cards.filter(c=>c.done).slice().sort((a,b)=>(b.doneAt||"").localeCompare(a.doneAt||""));
+    $("#doneCount").textContent = "✅ "+done.length+" tâche"+(done.length>1?"s":"")+" terminée"+(done.length>1?"s":"");
+    $("#doneClear").style.display = done.length? "" : "none";
+    if(!done.length){ const e=document.createElement("div"); e.className="done-empty"; e.textContent="Aucune tâche terminée pour l'instant. Coche une tâche (Priorités du jour, Client ou SOMA) pour l'archiver ici."; list.appendChild(e); return; }
+    const wrap=document.createElement("div"); wrap.className="done-list";
+    done.forEach(card=>{
+      const it=document.createElement("div"); it.className="done-item";
+      const cb=document.createElement("input"); cb.type="checkbox"; cb.checked=true; cb.title="Rétablir (remettre dans sa colonne)";
+      cb.onchange=()=>{ card.done=false; card.doneAt=""; render(); };
+      const col=colDef(card.col);
+      const tag=document.createElement("span"); tag.className="dtag"; tag.style.background="var("+colVar[card.col]+")"; tag.textContent=col.title;
+      const txt=document.createElement("span"); txt.className="dtxt"; txt.textContent=card.text;
+      const when=document.createElement("span"); when.className="dwhen"; when.textContent=card.doneAt?("terminé le "+fmtDay(card.doneAt)):"";
+      const del=document.createElement("button"); del.className="ddel"; del.textContent="×"; del.title="Supprimer définitivement";
+      del.onclick=()=>askConfirm({title:"Supprimer définitivement", message:"Supprimer définitivement <b>"+esc(card.text)+"</b> ?"}, ()=>{ state.cards=state.cards.filter(c=>c.id!==card.id); render(); });
+      it.append(cb,tag,txt,when,del); wrap.appendChild(it);
+    });
+    list.appendChild(wrap);
+  }
+
   /* ---------- stats / jalons / rituals ---------- */
   function renderStats(){
     const box=$("#stats");
@@ -943,12 +992,14 @@
     const soon=state.cards.filter(c=>!c.done && daysUntil(c.date)!==null && daysUntil(c.date)>=0 && daysUntil(c.date)<=3).length;
     const relances=state.cards.filter(c=>c.col==="relance" && !c.done).length;
     const soma=state.cards.filter(c=>c.col==="soma" && !c.done).length;
+    const doneN=state.cards.filter(c=>c.done).length;
     const data=[
       {n:state.inbox.length,l:"inbox"},
       {n:soma,l:"SOMA ouv."},
       {n:relances,l:"relances"},
       {n:soon,l:"sous 3j",cls:soon?"soon":""},
       {n:overdue,l:"en retard",cls:overdue?"alert":""},
+      {n:doneN,l:"terminées"},
     ];
     box.innerHTML=data.map(d=>'<div class="stat '+(d.cls||"")+'"><b>'+d.n+'</b><span>'+d.l+'</span></div>').join("");
   }
@@ -1055,6 +1106,7 @@
   $("#dayPrev").onclick=()=>{ dayOffset--; renderDay(); };
   $("#dayNext").onclick=()=>{ dayOffset++; renderDay(); };
   $("#dayToday").onclick=()=>{ dayOffset=0; renderDay(); };
+  $("#doneClear").onclick=()=>{ const n=state.cards.filter(c=>c.done).length; if(!n) return; askConfirm({title:"Vider les terminées", message:"Supprimer définitivement les <b>"+n+"</b> tâche(s) terminée(s) ?"}, ()=>{ state.cards=state.cards.filter(c=>!c.done); render(); }); };
   $("#inboxForm").addEventListener("submit",e=>{ e.preventDefault(); const inp=$("#inboxInput"); const v=inp.value.trim();
     if(v){ state.inbox.unshift({id:uid(),text:v}); inp.value=""; render(); } });
   $("#exportBtn").onclick=()=>{ const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
