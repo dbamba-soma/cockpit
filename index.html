@@ -197,12 +197,15 @@
   .done-bar #doneCount{font-weight:700;font-size:14px}
   .done-list{display:flex;flex-direction:column;gap:8px}
   .done-empty{color:var(--muted);font-size:13px;text-align:center;padding:30px 0;background:var(--panel);border:1px dashed var(--line);border-radius:var(--radius)}
-  .done-item{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:0 1px 1px rgba(16,24,40,.04)}
-  .done-item input[type=checkbox]{width:16px;height:16px;flex:none;cursor:pointer;accent-color:var(--soma)}
+  .done-item{display:flex;align-items:flex-start;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:0 1px 1px rgba(16,24,40,.04)}
+  .done-item input[type=checkbox]{width:16px;height:16px;flex:none;margin-top:3px;cursor:pointer;accent-color:var(--soma)}
+  .done-item .dbody{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+  .done-item .dtop{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .done-item .dtag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;color:#fff;flex:none}
-  .done-item .dtxt{flex:1;font-size:14px;text-decoration:line-through;color:var(--muted);word-break:break-word}
-  .done-item .dwhen{font-size:11px;color:var(--muted);flex:none}
-  .done-item .ddel{border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:2px 6px;flex:none}
+  .done-item .dtxt{font-size:14px;text-decoration:line-through;color:var(--muted);word-break:break-word}
+  .done-item .dwhen{font-size:11px;color:var(--muted)}
+  .done-item .ddel{border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:2px 6px;flex:none;margin-top:1px}
+  .done-item .ddel:hover{color:var(--danger)}
   .done-item .ddel:hover{color:var(--danger)}
 
   /* lower panels */
@@ -477,8 +480,8 @@
     {id:"jour",    title:"⭐ Priorités du jour", short:"JOU", done:true},
     {id:"client",  title:"🎯 CLIENT",   short:"CLI", done:true},
     {id:"soma",    title:"🏢 SOMA",     short:"SOM", done:true},
-    {id:"relance", title:"⏳ RELANCES", short:"REL", done:false, who:true, dateLabel:"relancer le"},
-    {id:"tard",    title:"💤 PLUS TARD", short:"PLU", done:false},
+    {id:"relance", title:"⏳ RELANCES", short:"REL", done:true, who:true, dateLabel:"relancer le"},
+    {id:"tard",    title:"💤 PLUS TARD", short:"PLU", done:true},
   ];
   const colDef = id => COLS.find(c=>c.id===id) || COLS[0];
   const colVar = {jour:"--jour",client:"--client",soma:"--soma",relance:"--relance",tard:"--tard"};
@@ -968,19 +971,23 @@
     const done=state.cards.filter(c=>c.done).slice().sort((a,b)=>(b.doneAt||"").localeCompare(a.doneAt||""));
     $("#doneCount").textContent = "✅ "+done.length+" tâche"+(done.length>1?"s":"")+" terminée"+(done.length>1?"s":"");
     $("#doneClear").style.display = done.length? "" : "none";
-    if(!done.length){ const e=document.createElement("div"); e.className="done-empty"; e.textContent="Aucune tâche terminée pour l'instant. Coche une tâche (Priorités du jour, Client ou SOMA) pour l'archiver ici."; list.appendChild(e); return; }
+    if(!done.length){ const e=document.createElement("div"); e.className="done-empty"; e.textContent="Aucune tâche terminée pour l'instant. Coche une tâche dans n'importe quelle colonne pour l'archiver ici."; list.appendChild(e); return; }
     const wrap=document.createElement("div"); wrap.className="done-list";
     done.forEach(card=>{
       const it=document.createElement("div"); it.className="done-item";
       const cb=document.createElement("input"); cb.type="checkbox"; cb.checked=true; cb.title="Rétablir (remettre dans sa colonne)";
       cb.onchange=()=>{ card.done=false; card.doneAt=""; render(); };
       const col=colDef(card.col);
+      const body=document.createElement("div"); body.className="dbody";
+      const top=document.createElement("div"); top.className="dtop";
       const tag=document.createElement("span"); tag.className="dtag"; tag.style.background="var("+colVar[card.col]+")"; tag.textContent=col.title;
       const txt=document.createElement("span"); txt.className="dtxt"; txt.textContent=card.text;
+      top.append(tag,txt);
       const when=document.createElement("span"); when.className="dwhen"; when.textContent=card.doneAt?("terminé le "+fmtDay(card.doneAt)):"";
+      body.append(top,when);
       const del=document.createElement("button"); del.className="ddel"; del.textContent="×"; del.title="Supprimer définitivement";
       del.onclick=()=>askConfirm({title:"Supprimer définitivement", message:"Supprimer définitivement <b>"+esc(card.text)+"</b> ?"}, ()=>{ state.cards=state.cards.filter(c=>c.id!==card.id); render(); });
-      it.append(cb,tag,txt,when,del); wrap.appendChild(it);
+      it.append(cb,body,del); wrap.appendChild(it);
     });
     list.appendChild(wrap);
   }
